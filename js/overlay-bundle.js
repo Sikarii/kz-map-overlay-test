@@ -91,7 +91,7 @@ var overlay = (function (exports, config, template) {
     return target;
   }
 
-  var version = "3.0.2";
+  var version = "3.0.3";
 
   class Logger {
     constructor(options) {
@@ -144,6 +144,19 @@ var overlay = (function (exports, config, template) {
     }
 
     return entry.expires < Math.floor(Date.now() / 1000);
+  };
+  var removeExpiredCacheEntries = () => {
+    var cacheKeys = Object.keys(sessionStorage);
+    var secondsNow = Math.floor(Date.now() / 1000);
+
+    for (var key of cacheKeys) {
+      var entry = getCacheEntry(key);
+      var expiredSeconds = Math.abs(secondsNow - entry.expires); // 5 minutes
+
+      if (expiredSeconds >= 300) {
+        removeCacheEntry(key);
+      }
+    }
   };
 
   class ApiHTTPClient {
@@ -228,7 +241,6 @@ var overlay = (function (exports, config, template) {
       }
 
       var cacheKey = url.toString();
-      var expiry = options.client.cacheLifetime;
       var cacheEntry = getCacheEntry(cacheKey);
 
       if (!isExpiredCacheEntry(cacheEntry)) {
@@ -259,7 +271,7 @@ var overlay = (function (exports, config, template) {
           url,
           data
         });
-        setCacheEntry(cacheKey, data, expiry);
+        setCacheEntry(cacheKey, data, options.client.cacheLifetime);
         return data;
       } catch (err) {
         var _options$logger4;
@@ -292,18 +304,8 @@ var overlay = (function (exports, config, template) {
       cacheLifetime: config__default['default'].apiClientCacheLifetime
     }
   });
-  logger.DoInfo("kz-map-overlay v".concat(version)); // Clear potential expired entries
-
-  var cacheKeys = Object.keys(localStorage);
-
-  for (var key of cacheKeys) {
-    var entry = getCacheEntry(key);
-
-    if (isExpiredCacheEntry(entry)) {
-      removeCacheEntry(key);
-    }
-  }
-
+  logger.DoInfo("kz-map-overlay v".concat(version));
+  setInterval(removeExpiredCacheEntries, 60000);
   var app = new Vue({
     el: "#overlay",
     template: template__default['default'],
